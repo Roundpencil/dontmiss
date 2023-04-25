@@ -1,11 +1,9 @@
-from FilmControler import *
-import modeleFilms
-from PyQt5 import QtWidgets
-from PyQt5.QtCore import Qt
-import sys
-import datetime
 import pickle
+import sys
 
+from PyQt5 import QtWidgets
+
+from FilmControler import *
 
 #todo :  génrer une page web et l'afficher sur Yogi
 #todo : comprendre ce qu'il se passe quand on supprime, et forcer la mise à jour quand on ajoute
