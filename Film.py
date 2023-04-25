@@ -1,7 +1,6 @@
 import requests
 from bs4 import BeautifulSoup
-import datetime
-import json
+
 
 class Film:
     URL = "https://www.allocine.fr/film/fichefilm_gen_cfilm={}.html"

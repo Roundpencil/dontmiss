@@ -1,14 +1,16 @@
 import json
 import os
-from tkinter import simpledialog
+import re
+from tkinter import simpledialog, messagebox
 
-from modeleFilms import Film
+from Film import Film
 
 
 class FilmController:
     def __init__(self, view):
+        self.model = model
         self.view = view
-        self.load_films()
+        self.setup_callbacks()
 
     def load_films(self):
         if os.path.exists("films.json"):
@@ -26,12 +28,17 @@ class FilmController:
             json.dump(data, f)
 
     def add_film(self):
-        url = simpledialog.askstring("Ajouter film", "Entrez l'URL Allociné du film")
-        if url:
-            allocine_id = # Extract the Allocine ID from the URL
-            film = Film(allocine_id)
-            self.films.append(film)
-            self.view.update_treeview(self.films)
+        if url := simpledialog.askstring(
+            "Ajouter film", "Entrez l'URL Allociné du film"
+        ):
+            allocine_id_pattern = re.compile(r"film\/fichefilm_gen_cfilm=(\d+).html")
+            if match := allocine_id_pattern.search(url):
+                allocine_id = match[1]
+                film = Film(allocine_id)
+                self.films.append(film)
+                self.view.update_treeview(self.films)
+            else:
+                messagebox.showerror("Erreur", "L'URL Allociné entrée est invalide.")
 
     def delete_film(self):
         if selected_item := self.view.treeview.selection():
@@ -50,5 +57,3 @@ class FilmController:
     def on_close(self):
         self.save_films()
         self.view.destroy()
-
-

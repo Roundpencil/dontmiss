@@ -1,7 +1,7 @@
+import datetime
 import tkinter as tk
 from tkinter import ttk
-from tkinter import simpledialog
-import datetime
+
 
 class FilmView(tk.Tk):
     def __init__(self, controller):
