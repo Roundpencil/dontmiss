@@ -7,10 +7,17 @@ from Film import Film
 
 
 class FilmController:
-    def __init__(self, view):
-        self.model = model
+    # def __init__(self, view):
+    #     self.model = model
+    #     self.view = view
+    #     self.setup_callbacks()
+
+    def __init__(self):
+        self.view = None
+        self.films = []
+
+    def set_view(self, view):
         self.view = view
-        self.setup_callbacks()
 
     def load_films(self):
         if os.path.exists("films.json"):

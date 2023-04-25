@@ -1,3 +1,5 @@
+import re
+
 import requests
 from bs4 import BeautifulSoup
 
@@ -6,18 +8,37 @@ class Film:
     URL = "https://www.allocine.fr/film/fichefilm_gen_cfilm={}.html"
 
     def __init__(self, allocine_id):
+        self.release_date = None
+        self.title = None
         self.allocine_id = allocine_id
         self.fetch_details()
         self.nb_cinemas = {}
         self.archived = False
 
+    # def fetch_details(self):
+    #     url = self.URL.format(self.allocine_id)
+    #     response = requests.get(url)
+    #     soup = BeautifulSoup(response.text, 'html.parser')
+    #
+    #     self.title = soup.find('div', class_='titlebar-title titlebar-title-lg').text.strip()
+    #     print(f"titre trouvé : {self.title}")
+    #     self.release_date = soup.find('span', class_='date blue-link').text.strip()
     def fetch_details(self):
         url = self.URL.format(self.allocine_id)
         response = requests.get(url)
         soup = BeautifulSoup(response.text, 'html.parser')
 
         self.title = soup.find('div', class_='titlebar-title titlebar-title-lg').text.strip()
-        self.release_date = soup.find('span', class_='date blue-link').text.strip()
+        print(f"titre trouvé : {self.title}")
+
+        if date_element := soup.find(
+            'span', string=re.compile(r'\d{1,2} \w+ \d{4}')
+        ):
+            self.release_date = date_element.text.strip()
+        else:
+            self.release_date = None
+
+        print(f"date trouvée : {self.release_date}")
 
     def fetch_screenings(self, date):
         if date not in self.nb_cinemas:
