@@ -150,3 +150,88 @@ def count_sessions_by_date_from_url(url):
 #
 # print(f"Date de sortie du film : {release_date}")
 # print(f"Nombre de séances par date : {session_counts}")
+
+
+def extract_allocine_info(url):
+    """
+    Extrait la date de sortie et le nombre de séances d'une page de film Allociné
+
+    Args:
+        url (str): URL d'une page film Allociné (format: https://www.allocine.fr/film/fichefilm_gen_cfilm=XXXXX.html)
+
+    Returns:
+        tuple: (date_sortie (datetime.date), nombre_seances (int))
+    """
+    # Ajout d'un User-Agent pour éviter d'être bloqué
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'Accept-Language': 'fr-FR,fr;q=0.9'
+    }
+
+    try:
+        # Augmenter le timeout pour éviter les erreurs
+        response = requests.get(url, headers=headers, timeout=20)
+        response.raise_for_status()
+
+        soup = BeautifulSoup(response.text, 'html.parser')
+
+        # Extraction de la date de sortie
+        date_sortie = None
+        date_elem = soup.select_one('div.meta-body-info span.date')
+        if date_elem:
+            date_text = date_elem.text.strip()
+            # Extraction du format "XX mois YYYY"
+            match = re.search(r'(\d+\s+\w+\s+\d{4})', date_text)
+            if match:
+                date_str = match.group(1)
+                # Conversion de la date en format datetime
+                try:
+                    # Conversion du mois en français vers un nombre
+                    for i, mois in enumerate(['janvier', 'février', 'mars', 'avril', 'mai', 'juin',
+                                              'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre']):
+                        date_str = date_str.replace(mois, str(i + 1))
+
+                    # Reformatage et parsing
+                    jour, mois, annee = date_str.split()
+                    date_sortie = datetime(int(annee), int(mois), int(jour)).date()
+                except Exception as e:
+                    print(f"Erreur lors de la conversion de la date: {e}")
+
+        # Extraction du nombre de séances
+        # nb_seances = 0
+        # seances_elem = soup.select_one('a.button.button-md.button-primary-full')
+        # print(seances_elem)
+        # if seances_elem and "séance" in seances_elem.text.lower():
+        #     seances_text = seances_elem.text.strip()
+        #     # Extraction du nombre (peut être formaté comme "XXX séances")
+        #     match = re.search(r'(\d+)', seances_text)
+        #     if match:
+        #         nb_seances = int(match.group(1))
+        # Stratégie 1 (principale) : Recherche du lien "Voir toutes les séances (X)"
+        nombre_seances = 0
+        seances_link = soup.select_one('.end-section-link')
+        if seances_link:
+            texte_seances = seances_link.get_text(strip=True)
+            match = re.search(r'Voir toutes les séances \((\d+)\)', texte_seances)
+            if match:
+                nombre_seances = int(match.group(1))
+
+        return date_sortie, nombre_seances
+
+    except requests.exceptions.Timeout:
+        print("Timeout lors de la requête, le site est peut-être lent ou bloque les requêtes.")
+        return (None, 0)
+    except requests.exceptions.RequestException as e:
+        print(f"Erreur lors de la requête: {e}")
+        return (None, 0)
+    except Exception as e:
+        print(f"Erreur inattendue: {e}")
+        return (None, 0)
+
+
+# # Exemple d'utilisation
+# if __name__ == "__main__":
+#     url = "https://www.allocine.fr/film/fichefilm_gen_cfilm=317783.html"
+#     date_sortie, nb_seances = extract_allocine_info(url)
+#     print(f"Date de sortie: {date_sortie}")
+#     print(f"Nombre de séances: {nb_seances}")
