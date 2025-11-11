@@ -7,39 +7,33 @@ from tkinter import ttk, messagebox
 from datetime import date, timedelta
 from typing import List
 
-# Assurez-vous que ce fichier est dans le même dossier que votre modèle
-# ou que le chemin est correctement configuré.
-try:
-    from modele_dontmiss import Film, GestionnaireFilms, StatutFilm
-except ImportError:
-    # Fallback si le modèle n'est pas trouvé, pour éviter un crash au démarrage
-    print("ERREUR : Le fichier 'modele_dontmiss.py' est introuvable.")
+from modele_dontmiss import Film, GestionnaireFilms, StatutFilm
 
 
-    # Définition de classes factices pour permettre au code de s'exécuter
-    class StatutFilm:
-        AFFICHE = "affiché"
-
-
-    class Film:
-        pass
-
-
-    class GestionnaireFilms:
-        def charger(self): self.films = {}
-
-        def lister_films(self, statut): return []
-
-        def obtenir_film(self, id): return None
-
-        def supprimer_film(self, id): pass
-
-        def sauvegarder(self): pass
-
-        @staticmethod
-        def trouver_mercredi_semaine(ref_date=date.today()):
-            jours_a_soustraire = (ref_date.weekday() - 2) % 7
-            return ref_date - timedelta(days=jours_a_soustraire)
+# # Définition de classes factices pour permettre au code de s'exécuter
+# class StatutFilm:
+#     AFFICHE = "affiché"
+#
+#
+# class Film:
+#     pass
+#
+#
+# class GestionnaireFilms:
+#     def charger(self): self.films = {}
+#
+#     def lister_films(self, statut): return []
+#
+#     def obtenir_film(self, id): return None
+#
+#     def supprimer_film(self, id): pass
+#
+#     def sauvegarder(self): pass
+#
+#     @staticmethod
+#     def trouver_mercredi_semaine(ref_date=date.today()):
+#         jours_a_soustraire = (ref_date.weekday() - 2) % 7
+#         return ref_date - timedelta(days=jours_a_soustraire)
 
 
 class ApplicationSuiviFilms:
