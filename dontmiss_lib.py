@@ -2,7 +2,7 @@ import requests
 from bs4 import BeautifulSoup
 import re
 from datetime import datetime
-from typing import Optional, Tuple
+import base64
 
 def extract_allocine_info(url):
     """
@@ -74,13 +74,13 @@ def extract_allocine_info(url):
 
     except requests.exceptions.Timeout:
         print("Timeout lors de la requête, le site est peut-être lent ou bloque les requêtes.")
-        return (None, 0)
+        return None, 0
     except requests.exceptions.RequestException as e:
         print(f"Erreur lors de la requête: {e}")
-        return (None, 0)
+        return None, 0
     except Exception as e:
         print(f"Erreur inattendue: {e}")
-        return (None, 0)
+        return None, 0
 
 
 # # Exemple d'utilisation
@@ -98,7 +98,7 @@ def recherche_allocine(terme_recherche):
         terme_recherche (str): Le terme à rechercher sur AlloCiné
 
     Returns:
-        list: Liste de tuples (nom du film, URL) correspondant aux résultats
+        list: Liste de tuples (nom du film, realisateur, date_sortie, id_allocine) correspondant aux résultats
     """
     # Construction de l'URL de recherche
     url = f"https://www.allocine.fr/rechercher/?q={terme_recherche}"
@@ -144,7 +144,42 @@ def recherche_allocine(terme_recherche):
                 date_element = film.find('span', class_='date')
                 date_sortie = date_element.text.strip() if date_element else None
 
-                resultats.append((titre, realisateur, date_sortie))
+                # 4. Extraction de l'id
+                movie_id = 0
+                # Méthode 1 : Chercher les liens thumbnail qui contiennent généralement l'ID du film
+                thumbnail_links = film.select('.thumbnail-container.thumbnail-link')
+
+                for link in thumbnail_links:
+                    # Obtenir la classe qui contient le lien encodé
+                    class_value = link.get('class')[0]
+
+                    # Si la classe commence par 'ACrL'
+                    if class_value.startswith('ACrL'):
+                        try:
+                            # Décodage Base64
+                            decoded = base64.b64decode(class_value[4:]).decode('utf-8')
+
+                            # Extraction de l'ID à partir du chemin décodé
+                            match = re.search(r'cfilm=(\d+)', decoded)
+                            if match:
+                                movie_id = match.group(1)
+                        except:
+                            pass
+                # Méthode 2 : Extraction à partir des données JavaScript (jsEntities)
+                # js_entities_pattern = re.compile(r'var jsEntities = \{\"([^"]+)\":')
+                # match = js_entities_pattern.search(str(film))
+                #
+                # if match:
+                #     encoded_id = match.group(1)
+                #     try:
+                #         # Décodage Base64 de l'ID du film
+                #         decoded = base64.b64decode(encoded_id).decode('utf-8')
+                #         # Format attendu après décodage: "Movie:28367"
+                #         movie_id = decoded.split(':')[1]
+                #     except:
+                #         pass
+
+                resultats.append((titre, realisateur, date_sortie, movie_id))
 
                 # ##### tentatived'une focntion dédiée
                 # resultats.append(extraire_infos_film(str(film)))

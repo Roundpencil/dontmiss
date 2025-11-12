@@ -5,8 +5,11 @@ Utilise Tkinter et son module ttk pour une interface moderne et performante.
 import tkinter as tk
 from tkinter import ttk, messagebox
 from datetime import date, timedelta
-from typing import List
+from tkinter import Toplevel
+from datetime import datetime, date
+from typing import Tuple, Optional, List
 
+from dontmiss_lib import recherche_allocine
 from modele_dontmiss import Film, GestionnaireFilms, StatutFilm
 
 
@@ -176,16 +179,60 @@ class ApplicationSuiviFilms:
 
     # --- Fonctions Placeholders (logique métier à implémenter) ---
 
+    # def action_ajouter_film(self) -> None:
+    #     """[PLACEHOLDER] Ouvre une fenêtre pour ajouter un film."""
+    #     messagebox.showinfo("Fonctionnalité à venir",
+    #                         "Ici s'ouvrira une fenêtre de dialogue pour ajouter un nouveau film par son ID Allociné.")
+    #     # Logique future :
+    #     # new_film_id = DemanderIdFilmDialog(self.root)
+    #     # if new_film_id:
+    #     #     # scraper les infos, créer l'objet Film, l'ajouter au gestionnaire
+    #     #     self.gestionnaire.sauvegarder()
+    #     #     self.charger_et_rafraichir_vue()
     def action_ajouter_film(self) -> None:
-        """[PLACEHOLDER] Ouvre une fenêtre pour ajouter un film."""
-        messagebox.showinfo("Fonctionnalité à venir",
-                            "Ici s'ouvrira une fenêtre de dialogue pour ajouter un nouveau film par son ID Allociné.")
-        # Logique future :
-        # new_film_id = DemanderIdFilmDialog(self.root)
-        # if new_film_id:
-        #     # scraper les infos, créer l'objet Film, l'ajouter au gestionnaire
-        #     self.gestionnaire.sauvegarder()
-        #     self.charger_et_rafraichir_vue()
+        """Ouvre le dialogue d'ajout, puis traite le résultat."""
+        dialogue = DialogueAjoutFilm(self.root)
+
+        # Le code est en pause ici jusqu'à la fermeture du dialogue grâce à wait_window()
+
+        if not dialogue.resultat:
+            return  # L'utilisateur a annulé
+
+        # --- Étape 5 : Ajout du film au modèle ---
+        try:
+            print(f"résultat de l'entrée utilisateur  = {dialogue.resultat}")
+            nom, realisateur, date_sortie_obj, allocine_id = dialogue.resultat
+
+            # Vérifier si le film existe déjà
+            if self.gestionnaire.obtenir_film(allocine_id):
+                messagebox.showinfo("Film déjà suivi",
+                                    f"Le film « {nom or 'Titre Inconnu'} » est déjà dans votre liste.",
+                                    parent=self.root)
+                return
+
+            # Création et ajout du film au gestionnaire
+            nouveau_film = Film(
+                allocine_id=allocine_id,
+                titre=nom or "Titre inconnu",
+                realisateur=realisateur or "Réalisateur inconnu",
+                date_sortie=date_sortie_obj
+            )
+            self.gestionnaire.ajouter_film(nouveau_film)
+
+            # Sauvegarder les changements (à décommenter quand la logique sera prête)
+            # self.gestionnaire.sauvegarder()
+
+            messagebox.showinfo("Succès",
+                                f"Le film « {nouveau_film.titre} » a été ajouté avec succès.",
+                                parent=self.root)
+
+            # Rafraîchir l'affichage principal
+            self.charger_et_rafraichir_vue()
+
+        except ValueError as e:  # Levé si l'ID existe déjà lors de l'ajout
+            messagebox.showerror("Erreur d'ajout", str(e), parent=self.root)
+        except Exception as e:
+            messagebox.showerror("Erreur imprévue", f"Impossible d'ajouter le film : {e}", parent=self.root)
 
     def action_rafraichir_seances(self) -> None:
         """[PLACEHOLDER] Lance la mise à jour des séances pour tous les films."""
@@ -222,9 +269,164 @@ class ApplicationSuiviFilms:
         """[PLACEHOLDER] Actions à exécuter à la fermeture de l'application."""
         print("Fermeture de l'application. Sauvegarde des données...")
         # Logique future :
-        # self.gestionnaire.sauvegarder()
+        self.gestionnaire.sauvegarder()
         self.root.destroy()
 
+
+class DialogueAjoutFilm(Toplevel):
+    """
+    Fenêtre de dialogue modale pour la recherche et l'ajout d'un film.
+    Elle gère la saisie, la recherche, l'affichage des résultats et la sélection.
+    """
+
+    def __init__(self, parent: tk.Tk):
+        super().__init__(parent)
+        self.resultat: Optional[Tuple] = None
+
+        # --- Configuration de la fenêtre ---
+        self.title("Ajouter un film depuis AlloCiné")
+        self.transient(parent)  # La rend dépendante de la fenêtre principale
+        self.grab_set()  # Rend la fenêtre modale (bloque la fenêtre parent) [4, 7, 8, 11]
+        self.resizable(False, False)
+
+        self._creer_widgets()
+        self._centrer_fenetre()
+
+        # Attendre que le dialogue soit fermé avant de continuer
+        # self.wait_window(self)[9, 10, 12, 13, 16]
+        self.wait_window(self)
+
+    def _creer_widgets(self):
+        """Construit les composants graphiques du dialogue."""
+        main_frame = ttk.Frame(self, padding=15)
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        # --- Étape 1 : Zone de recherche ---
+        search_frame = ttk.LabelFrame(main_frame, text="1. Rechercher un titre", padding=10)
+        search_frame.pack(fill=tk.X)
+
+        self.entry_titre = ttk.Entry(search_frame, width=50)
+        self.entry_titre.pack(fill=tk.X, expand=True, side=tk.LEFT, padx=(0, 10))
+        self.entry_titre.focus_set()
+
+        self.btn_rechercher = ttk.Button(search_frame, text="🔍 Rechercher", command=self._lancer_recherche)
+        self.btn_rechercher.pack(side=tk.LEFT)
+        self.entry_titre.bind("<Return>", lambda e: self._lancer_recherche())
+
+        # --- Étape 2 & 3 : Zone des résultats ---
+        results_frame = ttk.LabelFrame(main_frame, text="2. Sélectionner un film", padding=10)
+        results_frame.pack(fill=tk.BOTH, expand=True, pady=10)
+
+        self.status_label = ttk.Label(results_frame, text="Entrez un titre ci-dessus.", foreground="gray")
+        self.status_label.pack(pady=5)
+
+        list_frame = ttk.Frame(results_frame)
+        list_frame.pack(fill=tk.BOTH, expand=True)
+        scrollbar = ttk.Scrollbar(list_frame, orient=tk.VERTICAL)
+        self.listbox_resultats = tk.Listbox(list_frame, yscrollcommand=scrollbar.set, height=10, exportselection=False)
+        scrollbar.config(command=self.listbox_resultats.yview)
+
+        self.listbox_resultats.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        self.listbox_resultats.bind("<<ListboxSelect>>", self._on_selection_change)
+        self.listbox_resultats.bind("<Double-Button-1>", lambda e: self._valider_selection())
+
+        # --- Étape 4 : Boutons d'action ---
+        action_frame = ttk.Frame(main_frame)
+        action_frame.pack(fill=tk.X)
+
+        self.btn_ajouter = ttk.Button(action_frame, text="✅ Ajouter le film sélectionné",
+                                      command=self._valider_selection, state=tk.DISABLED)
+        self.btn_ajouter.pack(side=tk.RIGHT)
+
+        btn_annuler = ttk.Button(action_frame, text="Annuler", command=self.destroy)
+        btn_annuler.pack(side=tk.RIGHT, padx=(0, 10))
+
+    def _lancer_recherche(self):
+        terme = self.entry_titre.get().strip()
+        if not terme:
+            messagebox.showwarning("Saisie requise", "Veuillez saisir un titre de film.", parent=self)
+            return
+
+        self.btn_rechercher.config(state=tk.DISABLED, text="Recherche...")
+        self.status_label.config(text=f"Recherche de « {terme} »...", foreground="blue")
+        self.listbox_resultats.delete(0, tk.END)
+        self.update()
+
+        try:
+            self.resultats_data = recherche_allocine(terme)
+            if not self.resultats_data:
+                self.status_label.config(text=f"Aucun résultat pour « {terme} ».", foreground="red")
+            else:
+                self.status_label.config(text=f"{len(self.resultats_data)} film(s) trouvé(s).", foreground="darkgreen")
+                for film_data in self.resultats_data:
+                    display_text = self._formater_resultat(film_data)
+                    self.listbox_resultats.insert(tk.END, display_text)
+        except Exception as e:
+            self.status_label.config(text="Erreur lors de la recherche.", foreground="red")
+            messagebox.showerror("Erreur de recherche", f"Une erreur est survenue :\n{e}", parent=self)
+        finally:
+            self.btn_rechercher.config(state=tk.NORMAL, text="🔍 Rechercher")
+
+    @staticmethod
+    def _formater_resultat(film_data: Tuple) -> str:
+        """Formate un tuple de film pour l'affichage dans la liste."""
+        nom, realisateur, date_sortie, _ = film_data
+        nom_affiche = nom or "Titre inconnu"
+        real_affiche = realisateur or "Réalisateur inconnu"
+        date_affiche = date_sortie or "Date inconnue"
+        return f"{nom_affiche} - {real_affiche}, {date_affiche}"
+
+    def _parse_date(self, date_str: Optional[str]) -> date:
+        """Tente de parser une chaîne de date avec plusieurs formats courants."""
+        if not date_str or date_str == "Inconnu":
+            return date.today()
+
+        # Bibliothèque dateparser gérant de multiples formats automatiquement
+        try:
+            import dateparser
+            dt = dateparser.parse(date_str, languages=['fr'])
+            if dt:
+                return dt.date()
+        except (ImportError, TypeError):
+            # Fallback si dateparser n'est pas installé
+            for fmt in ("%d/%m/%Y", "%Y-%m-%d", "%d %B %Y"):
+                try:
+                    return datetime.strptime(date_str, fmt).date()
+                except ValueError:
+                    continue
+
+        # Si aucun format ne correspond, retourner la date du jour
+        print(f"AVERTISSEMENT: Impossible de parser la date '{date_str}'. Utilisation de la date du jour.")
+        return date.today()
+
+    def _on_selection_change(self, event):
+        """Active le bouton 'Ajouter' si un élément est sélectionné."""
+        self.btn_ajouter.config(state=tk.NORMAL if self.listbox_resultats.curselection() else tk.DISABLED)
+
+    def _valider_selection(self):
+        """Stocke les données du film sélectionné et ferme la fenêtre."""
+        selection_indices = self.listbox_resultats.curselection()
+        if not selection_indices:
+            messagebox.showwarning("Aucune sélection", "Veuillez sélectionner un film dans la liste.", parent=self)
+            return
+
+        index = selection_indices[0]
+        nom, realisateur, date_sortie_str, id_allocine = self.resultats_data[index]
+
+        # Convertir la date
+        date_obj = self._parse_date(date_sortie_str)
+
+        self.resultat = (nom, realisateur, date_obj, id_allocine)
+        self.destroy()
+
+    def _centrer_fenetre(self):
+        """Centre la fenêtre de dialogue sur l'écran."""
+        self.update_idletasks()
+        x = (self.winfo_screenwidth() // 2) - (self.winfo_width() // 2)
+        y = (self.winfo_screenheight() // 2) - (self.winfo_height() // 2)
+        self.geometry(f"+{x}+{y}")
 
 # --- Point d'entrée de l'application ---
 if __name__ == "__main__":
